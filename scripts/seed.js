@@ -15,6 +15,7 @@
  */
 
 import 'dotenv/config';
+import { resolveSeedRetention } from './seedRetention.js';
 
 // ── CLI argument parsing ──────────────────────────────────────────────────────
 
@@ -22,7 +23,11 @@ const args = process.argv.slice(2);
 const isDryRun = args.includes('--dry-run');
 const forceReseed = args.includes('--force');
 const countIdx = args.indexOf('--count');
-const extraCount = countIdx !== -1 ? Math.max(0, parseInt(args[countIdx + 1] ?? '0', 10)) : 0;
+const requestedExtraCount = countIdx !== -1 ? parseInt(args[countIdx + 1] ?? '0', 10) : 0;
+const { extraCount, maxExtraCount } = resolveSeedRetention(
+  requestedExtraCount,
+  process.env.SEED_MAX_EXTRA_COUNT,
+);
 
 if (isDryRun) console.log('🔍  Dry-run mode — no writes will occur\n');
 
@@ -214,6 +219,7 @@ async function seed() {
   console.log(`  Milestones (fixtures):   ${SEED_DATA.milestones.length}`);
   console.log(`  Reputation (fixtures):   ${SEED_DATA.reputationRecords.length}`);
   console.log(`  Extra escrows (--count): ${extraCount}`);
+  console.log(`  Retention limit:          ${maxExtraCount}`);
   console.log(`  Dry-run:                 ${isDryRun}`);
   console.log(`  Force re-seed:           ${forceReseed}`);
   console.log('');

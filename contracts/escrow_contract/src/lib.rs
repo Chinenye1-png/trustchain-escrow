@@ -92,6 +92,8 @@ mod pause_tests;
 mod platform_fee;
 mod property_invariant_tests;
 mod reentrancy_guard_tests;
+#[cfg(test)]
+mod rent_reclamation_tests;
 mod self_escrow_tests;
 mod slippage_tests;
 mod split_escrow_tests;
@@ -853,6 +855,7 @@ impl ContractStorage {
                 collectable,
                 meta.rent_balance,
                 Self::rent_expires_at(env, meta),
+                meta.token.clone(),
             ),
         );
         Ok(collectable)
@@ -921,7 +924,12 @@ impl ContractStorage {
 
         env.events().publish(
             (event_names::RENT_EXPIRED, meta.escrow_id),
-            (refund_amount, meta.remaining_balance),
+            (
+                refund_amount,
+                meta.remaining_balance,
+                meta.client.clone(),
+                meta.token.clone(),
+            ),
         );
         Ok(())
     }

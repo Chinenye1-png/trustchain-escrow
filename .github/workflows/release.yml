@@ -19,11 +19,36 @@ env:
   SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
 
 jobs:
+  branch-parity-preflight:
+    name: Branch parity preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate release branch configuration
+        env:
+          BASE_BRANCH: ${{ github.base_ref }}
+          HEAD_BRANCH: ${{ github.head_ref }}
+        run: |
+          set -euo pipefail
+          test "$BASE_BRANCH" = "main" || { echo "::error::Release base must be main"; exit 1; }
+          test "$HEAD_BRANCH" = "develop" || { echo "::error::Release source must be develop"; exit 1; }
+          git fetch --no-tags origin main develop
+          git merge-base --is-ancestor origin/main origin/develop || {
+            echo "::error::main and develop have diverged; reconcile them before release"
+            exit 1
+          }
+          for required_file in .github/workflows/ci.yml package.json Cargo.toml; do
+            test -f "$required_file" || { echo "::error::Missing required configuration: $required_file"; exit 1; }
+          done
+
   # ─────────────────────────────────────────
   # 🔒 Security Audit (release gate)
   # ─────────────────────────────────────────
   audit:
     name: Security Audit
+    needs: branch-parity-preflight
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -54,6 +79,7 @@ jobs:
   # ─────────────────────────────────────────
   contract:
     name: Smart Contract (Full Release Suite)
+    needs: branch-parity-preflight
     runs-on: ubuntu-latest
 
     steps:
@@ -104,6 +130,7 @@ jobs:
   # ─────────────────────────────────────────
   backend:
     name: Backend (Release Gate)
+    needs: branch-parity-preflight
     runs-on: ubuntu-latest
 
     steps:
@@ -135,6 +162,7 @@ jobs:
   # ─────────────────────────────────────────
   frontend:
     name: Frontend (Release Gate)
+    needs: branch-parity-preflight
     runs-on: ubuntu-latest
 
     steps:
@@ -219,6 +247,7 @@ jobs:
   # ─────────────────────────────────────────
   docker-build:
     name: Docker Build (Release Gate)
+    needs: branch-parity-preflight
     runs-on: ubuntu-latest
 
     steps:
